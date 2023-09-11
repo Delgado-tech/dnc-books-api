@@ -35,7 +35,7 @@ const schema = new mongoose.Schema({
         select: false
     }
 }, {
-    timestamps: false
+    timestamps: false,
 });
 
 export const userSchema = mongoose.models.UserData || mongoose.model("UserData", schema);

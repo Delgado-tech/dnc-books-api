@@ -24,7 +24,7 @@ router.get("/users", async (req: Request, res: Response) => {
         //     throw new Error("Unauthorized!");
         // }
     
-        const users = await userSchema.find();
+        const users = await userSchema.find().select("+token");
         res.status(200).json(users);
 
     } catch (error) {
@@ -127,7 +127,6 @@ router.put("/users/:id/regentoken", async (req: Request, res: Response) => {
     #swagger.tags = ['Users']
     #swagger.responses[200] = { description: "OK", schema: { $ref: "#/components/schemas/UserData" } }
     #swagger.responses[404] = { description: "Not Found", schema: { $ref: "#/components/schemas/ErrorMessage" } }
-    #swagger.requestBody = { content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } }
     */
    
     const id = req.params.id;
@@ -154,23 +153,24 @@ router.put("/users/:id/regentoken", async (req: Request, res: Response) => {
         }
 
         const newToken = jwt.sign(newId, process.env.JWT_SECRET!);
-
         const dbResponse = await userSchema.updateOne({ _id: id }, { _id: newId, token: newToken });
-
+        
         if (dbResponse.modifiedCount > 0) {
-            const user = await userSchema.findOne({ _id: id });
+            const user = await userSchema.findOne({ _id: newId });
 
             res.status(200).json({
                 status: "OK",
-                message: `User (#${id}) has been updated!`,
-                response: user
+                message: `User (#${id}) has his token regenerated!`,
+                response: {
+                    token: user
+                }
             });
         }
 
     } catch(error) {
-        if (String(error).includes("_id")) {
-            return errorHandler(res, new Error("User not found!"), { errorTitle: "Not Found", errorStatusCode: 404 });
-        }
+        // if (String(error).includes("_id")) {
+        //     return errorHandler(res, new Error("User not found!"), { errorTitle: "Not Found", errorStatusCode: 404 });
+        // }
 
         errorHandler(res, error);
     }
@@ -178,29 +178,29 @@ router.put("/users/:id/regentoken", async (req: Request, res: Response) => {
 
 });
 
-router.delete("/users/:id/:token?", async (req: Request, res: Response) => {
+router.delete("/users/:id", async (req: Request, res: Response) => {
     /* 
     #swagger.tags = ['Users']
-    #swagger.parameters['token?'] = { name: "token", required: false }
+    #swagger.parameters['token'] = { in: "query", name: "token", required: false }
     #swagger.responses[200] = { description: "OK" }
     #swagger.responses[400] = { description: "Invalid Request", schema: { $ref: "#/components/schemas/ErrorMessage" } }
     #swagger.responses[404] = { description: "Not Found", schema: { $ref: "#/components/schemas/ErrorMessage" } }
     */
 
     const id = req.params.id;
-    const token = req.params.token;
+    //const token = req.params.token;
     try {
 
-        const decodedToken = jwt.decode(token);
-        const user = await userSchema.findOne({ _id: decodedToken }).select("+acessLevel");
+        // const decodedToken = jwt.decode(token);
+        // const user = await userSchema.findOne({ _id: decodedToken }).select("+acessLevel");
 
-        if (user.acessLevel !== UserAcessLevel.admin) {
-            throw new Error("Unauthorized!");
-        }
+        // if (user.acessLevel !== UserAcessLevel.admin) {
+        //     throw new Error("Unauthorized!");
+        // }
 
-        if (id === decodedToken) {
-            throw new Error("You can't delete your self!");
-        }
+        // if (id === decodedToken) {
+        //     throw new Error("You can't delete your self!");
+        // }
 
         const dbResponse = await userSchema.deleteOne({ _id: id });
 

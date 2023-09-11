@@ -7,6 +7,7 @@ import booksRouter from './routes/books';
 import usersRouter from './routes/users';
 import fs from 'fs';
 import dbConnect from './middlewares/db-connect';
+import auth from './middlewares/auth';
 
 const swaggerFile = JSON.parse(fs.readFileSync('./dist/swagger/swagger_output.json', { encoding: "utf-8" }));
 
@@ -29,8 +30,8 @@ app.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerFile, {
     customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.css',
 }));
 
-app.use(dbConnect, booksRouter);
-app.use(dbConnect, usersRouter);
+app.use(dbConnect, auth, booksRouter);
+app.use(dbConnect, auth, usersRouter);
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`);
