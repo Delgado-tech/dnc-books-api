@@ -3,10 +3,11 @@ import { userSchema, UserAcessLevel } from '../models/userSchema';
 import { errorHandler } from '../functions/errorHandler';
 import validator from 'validator';
 import jwt from 'jsonwebtoken';
+import mongoose, { ObjectId } from 'mongoose';
 
 const router = express.Router();
 
-router.get("/users/:token?", async (req: Request, res: Response) => {
+router.get("/users", async (req: Request, res: Response) => {
     /* 
     #swagger.tags = ['Users']
     #swagger.responses[200] = { description: "OK", schema: { $ref: "#/components/schemas/UserData" } }    
@@ -14,14 +15,14 @@ router.get("/users/:token?", async (req: Request, res: Response) => {
 
     try {
 
-        const token = req.params.token;
+        // const token = req.params.token;
     
-        const decodedToken = jwt.decode(token);
-        const user = await userSchema.findOne({ _id: decodedToken }).select("+acessLevel");
+        // const decodedToken = jwt.decode(token);
+        // const user = await userSchema.findOne({ _id: decodedToken }).select("+acessLevel");
 
-        if (user.acessLevel !== UserAcessLevel.admin) {
-            throw new Error("Unauthorized!");
-        }
+        // if (user.acessLevel !== UserAcessLevel.admin) {
+        //     throw new Error("Unauthorized!");
+        // }
     
         const users = await userSchema.find();
         res.status(200).json(users);
@@ -69,11 +70,11 @@ router.post("/users", async (req: Request, res: Response) => {
         }
 
         const dbResponse = await userSchema.create({ name, email, password, acessLevel });
-        const user = await userSchema.findOne({ email });
+        //const user = await userSchema.findOne({ email });
 
-        const token = jwt.sign(user._id, process.env.JWT_SECRET!);
+        //const token = jwt.sign(user._id, process.env.JWT_SECRET!);
 
-        await userSchema.updateOne({ email }, { token });
+        //await userSchema.updateOne({ email }, { token });
 
 
         res.status(200).json({
@@ -119,6 +120,62 @@ router.put("/users/:id", async (req: Request, res: Response) => {
 
         errorHandler(res, error);
     }
+});
+
+router.put("/users/:id/regentoken", async (req: Request, res: Response) => {
+    /* 
+    #swagger.tags = ['Users']
+    #swagger.responses[200] = { description: "OK", schema: { $ref: "#/components/schemas/UserData" } }
+    #swagger.responses[404] = { description: "Not Found", schema: { $ref: "#/components/schemas/ErrorMessage" } }
+    #swagger.requestBody = { content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } }
+    */
+   
+    const id = req.params.id;
+    try {
+        const maxAttempts = 10;
+        let attempts = 1;
+        let sucessRegen = false;
+        let newId = "";
+
+        while(!sucessRegen) {
+            newId = String(new mongoose.Types.ObjectId());
+            
+            const user = await userSchema.findOne({ _id: newId });
+            if (user) {
+                if (attempts >= maxAttempts) {
+                    throw new Error("Unable to regenerate your token, please try again");
+                }
+
+                attempts++;
+                continue;
+            }
+
+            sucessRegen = true;
+        }
+
+        const newToken = jwt.sign(newId, process.env.JWT_SECRET!);
+
+        const dbResponse = await userSchema.updateOne({ _id: id }, { _id: newId, token: newToken });
+
+        if (dbResponse.modifiedCount > 0) {
+            const user = await userSchema.findOne({ _id: id });
+
+            res.status(200).json({
+                status: "OK",
+                message: `User (#${id}) has been updated!`,
+                response: user
+            });
+        }
+
+    } catch(error) {
+        if (String(error).includes("_id")) {
+            return errorHandler(res, new Error("User not found!"), { errorTitle: "Not Found", errorStatusCode: 404 });
+        }
+
+        errorHandler(res, error);
+    }
+
+
 });
 
 router.delete("/users/:id/:token?", async (req: Request, res: Response) => {

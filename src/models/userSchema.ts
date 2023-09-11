@@ -22,8 +22,6 @@ const schema = new mongoose.Schema({
     password: {
         type: String,
         required: true,
-        minlength: 8,
-        maxlenght: 32,
         select: false
     },
     acessLevel: {
