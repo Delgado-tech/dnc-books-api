@@ -20,13 +20,13 @@ const doc = {
     host: "localhost:3000",
     servers: [
         {
+            url: "https://dnc-books-api.vercel.app/docs/",
+            description: "Production" 
+        },
+        {
             url: "http://localhost:3000",
             description: "Localhost"
         },
-        {
-            url: "http://boardtasks-back.vercel.app/",
-            description: "produção" 
-        }
     ],
     consumes: ['aplication/json'],
     produces: ['aplication/json'],
