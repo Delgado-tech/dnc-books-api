@@ -64,7 +64,7 @@ const doc = {
                     name: { type: "string" },
                     email: { type: "string" },
                     password: { type: "string"},
-                    acessLevel: { type: "string", example: "default" },
+                    accessLevel: { type: "string", example: "default" },
                 }
             },
             Book: { 

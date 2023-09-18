@@ -18,7 +18,7 @@ router.get("/users", async (req: Request, res: Response) => {
         const token = jwt.decode(String(req.query.token)) as JwtPayload;
         const userLogged = await userSchema.findOne({ _id: token }).select("+accessLevel");
 
-        if (userLogged.acessLevel !== UserAccessLevel.admin) {
+        if (userLogged.accessLevel !== UserAccessLevel.admin) {
             throw new Error("Unauthorized!");
         }
     
