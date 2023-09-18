@@ -20,7 +20,7 @@ const doc = {
     host: "localhost:3000",
     servers: [
         {
-            url: "https://dnc-books-api.vercel.app/docs/",
+            url: "https://dnc-books-api.vercel.app",
             description: "Production" 
         },
         {
