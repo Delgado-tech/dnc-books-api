@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express';
 import { bookSchema } from '../models/bookSchema';
 import { errorHandler } from '../functions/errorHandler';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { UserAccessLevel, userSchema } from '../models/userSchema';
 
 const router = express.Router();
 
@@ -9,8 +11,20 @@ router.get("/books", async (req: Request, res: Response) => {
     #swagger.tags = ['Books']
     #swagger.responses[200] = { description: "OK", schema: { $ref: "#/components/schemas/BookData" } }    
     */
-    const books = await bookSchema.find();
-    res.status(200).json(books);
+    try {
+        const token = jwt.decode(String(req.query.token)) as JwtPayload;
+        const user = await userSchema.findOne({ _id: token });
+
+        if (!user) {
+            throw new Error("Invalid Token!");
+        }
+
+        const books = await bookSchema.find();
+        res.status(200).json(books);
+
+    } catch (error) {
+        errorHandler(res, error);
+    }
 });
 
 router.get("/books/:id", async (req: Request, res: Response) => {
@@ -22,12 +36,19 @@ router.get("/books/:id", async (req: Request, res: Response) => {
 
     const id = req.params.id;
     try {
-        const book = await bookSchema.find({ _id: id });
+        const token = jwt.decode(String(req.query.token)) as JwtPayload;
+        const user = await userSchema.findOne({ _id: token });
+
+        if (!user) {
+            throw new Error("Invalid Token!");
+        }
+
+        const book = await bookSchema.find({ bookId: id });
         res.status(200).json(book);
 
     } catch (error) {
         if (String(error).includes("_id")) {
-            return errorHandler(res, new Error("Book not found!"), { errorTitle: "Not Found", errorStatusCode: 404 });
+            return errorHandler(res, new Error("Livro não encontrado!"), { errorTitle: "Not Found", errorStatusCode: 404 });
         }
 
         errorHandler(res, error);
@@ -42,16 +63,36 @@ router.post("/books", async (req: Request, res: Response) => {
     #swagger.requestBody = { content: { "application/json": { schema: { $ref: "#/components/schemas/Book" } } } }
     */
 
-    const { title, pageCount, codeISBN, publisher } = req.body;
+    const { bookId, title, pageCount, codeISBN, publisher } = req.body;
     try {
-        const dbResponse = await bookSchema.create({ title, pageCount, codeISBN, publisher });
+        const token = jwt.decode(String(req.query.token)) as JwtPayload;
+        const user = await userSchema.findOne({ _id: token });
+
+        if (!user) {
+            throw new Error("Invalid Token!");
+        }
+
+        const dbResponse = await bookSchema.create({ bookId, title, pageCount, codeISBN, publisher, userID: user._id });
 
         res.status(201).json({
             status: "OK",
-            message: "Book has been created!",
+            message: "O Livro foi cadastrado com sucesso!",
             response: dbResponse
         });
     } catch (error) {
+
+        if (String(error).includes("bookId_1 dup key")){
+            return errorHandler(res, new Error("O id informado já está em uso, escolha outro!"));
+        }
+
+        if (String(error).includes("codeISBN_1 dup key")){
+            return errorHandler(res, new Error("O código ISBN informado já está em uso, escolha outro!"));
+        }
+
+        if (String(error).includes("ValidationError: codeISBN:")){
+            return errorHandler(res, new Error("O código ISBN deve conter 13 caracteres!"));
+        }
+
         errorHandler(res, error);
     }
 });
@@ -66,24 +107,50 @@ router.put("/books/:id", async (req: Request, res: Response) => {
     */
 
     const id = req.params.id;
-    const { title, pageCount, codeISBN, publisher } = req.body;
+    const { bookId, title, pageCount, codeISBN, publisher } = req.body;
 
     try {
-        const dbResponse = await bookSchema.updateOne({ _id: id }, { title, pageCount, codeISBN, publisher });
+        const token = jwt.decode(String(req.query.token)) as JwtPayload;
+        const user = await userSchema.findOne({ _id: token }).select("+accessLevel");
+
+        if (!user) {
+            throw new Error("Invalid Token!");
+        }
+
+        if (user.accessLevel !== UserAccessLevel.admin) {
+            const bookExist = await bookSchema.findOne({ userID: user._id });
+            if (!bookExist) {
+                throw new Error("O livro não existe ou você não tem acesso suficiente para editá-lo!");
+            }
+        }
+
+        const dbResponse = await bookSchema.updateOne({ bookId: id }, { bookId, title, pageCount, codeISBN, publisher }).populate("userID");
 
         if (dbResponse.modifiedCount > 0) {
-            const book = await bookSchema.findOne({ _id: id });
+            const book = await bookSchema.findOne({ bookId: id });
 
             res.status(200).json({
                 status: "OK",
-                message: `Book (#${id}) has been updated!`,
+                message: `O livro (#${id}) foi atualizado com sucesso!`,
                 response: book
             });
         }
 
     } catch(error) {
         if (String(error).includes("_id")) {
-            return errorHandler(res, new Error("Book not found!"), { errorTitle: "Not Found", errorStatusCode: 404 });
+            return errorHandler(res, new Error("O Livro não foi encontrado!"), { errorTitle: "Not Found", errorStatusCode: 404 });
+        }
+
+        if (String(error).includes("bookId_1 dup key")){
+            return errorHandler(res, new Error("O id informado já está em uso, escolha outro!"));
+        }
+
+        if (String(error).includes("codeISBN_1 dup key")){
+            return errorHandler(res, new Error("O código ISBN informado já está em uso, escolha outro!"));
+        }
+
+        if (String(error).includes("ValidationError: codeISBN:")){
+            return errorHandler(res, new Error("O código ISBN deve conter 13 caracteres!"));
         }
 
         errorHandler(res, error);
@@ -100,19 +167,33 @@ router.delete("/books/:id",  async (req: Request, res: Response) => {
 
     const id = req.params.id;
     try {
-        const dbResponse = await bookSchema.deleteOne({ _id: id });
+        const token = jwt.decode(String(req.query.token)) as JwtPayload;
+        const user = await userSchema.findOne({ _id: token });
+
+        if (!user) {
+            throw new Error("Invalid Token!");
+        }
+
+        if (user.accessLevel !== UserAccessLevel.admin) {
+            const bookExist = await bookSchema.findOne({ userID: user._id });
+            if (!bookExist) {
+                throw new Error("O livro não existe ou você não tem acesso suficiente para deleta-lo!");
+            }
+        }
+
+        const dbResponse = await bookSchema.deleteOne({ bookId: id });
 
         if (dbResponse.deletedCount > 0) {
             res.status(200).json({
                 status: "OK",
-                message: `Book (#${id}) has been deleted!`,
+                message: `O livro (#${id}) foi deletado com sucesso!`,
                 response: dbResponse
             });
         }
 
     } catch (error) {
-        if (String(error).includes("_id")) {
-            return errorHandler(res, new Error("Book not found!"), { errorTitle: "Not Found", errorStatusCode: 404 });
+        if (String(error).includes("bookId")) {
+            return errorHandler(res, new Error("O livro não foi encontrado!"), { errorTitle: "Not Found", errorStatusCode: 404 });
         }
 
         errorHandler(res, error);

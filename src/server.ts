@@ -3,6 +3,7 @@ import swaggerUI from 'swagger-ui-express';
 import cors from 'cors';
 import cookieParse from 'cookie-parser';
 import dotenv from 'dotenv';
+import loginRouter from './routes/login';
 import booksRouter from './routes/books';
 import usersRouter from './routes/users';
 import fs from 'fs';
@@ -30,6 +31,7 @@ app.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerFile, {
     customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.css',
 }));
 
+app.use(dbConnect, auth, loginRouter);
 app.use(dbConnect, auth, booksRouter);
 app.use(dbConnect, auth, usersRouter);
 

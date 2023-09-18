@@ -9,13 +9,13 @@ const swaggerAutoGen = autogen({
 });
 
 const outputFile = './swagger_output.json';
-const endpointsFiles = ['../routes/books.js', '../routes/users.js'];
+const endpointsFiles = ['../routes/login.js', '../routes/books.js', '../routes/users.js'];
 
 const doc = {
     info: {
         version: "1.0.0",
         title: "DNC-Books",
-        description: "Desc",
+        description: "API de registro de livros",
     },
     host: "localhost:3000",
     servers: [
@@ -34,6 +34,29 @@ const doc = {
         '@schemas': {
             UserData: mongooseToSwagger(userSchema),
             BookData: mongooseToSwagger(bookSchema),
+            Login: {
+                type: "object",
+                required: [ "email", "password" ], 
+                properties: { 
+                    email: { type: "string" },
+                    password: { type: "string"},
+                }
+            },
+            ChangePassword: {
+                type: "object",
+                required: [ "email", "password", "newPassword" ], 
+                properties: { 
+                    email: { type: "string" },
+                    password: { type: "string"},
+                    newPassword: { type: "string"},
+                }
+            },
+            Token: {
+                type: "string",
+                properties: { 
+                    token: { type: "string" },
+                }
+            },
             User: { 
                 type: "object",
                 required: [ "name", "email", "password" ], 
@@ -48,10 +71,12 @@ const doc = {
                 type: "object",
                 required: [ "title", "pageCount", "codeISBN", "publisher" ], 
                 properties: { 
+                    bookId: { type: "number" },
                     title: { type: "string" },
                     pageCount: { type: "number" },
                     codeISBN: { type: "string", example: "5712211031434" },
                     publisher: { type: "string" },
+                    userID: { type: "string" }
                 }
             },
             ErrorMessage: {

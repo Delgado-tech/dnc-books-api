@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const schema = new mongoose.Schema({
+    bookId: {
+        type: Number,
+        unique: true,
+        required: true
+    },
     title: {
         type: String,
         required: true,
@@ -21,6 +26,10 @@ const schema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
+    },
+    userID: {
+        type: mongoose.Types.ObjectId,
+        required: true
     }
 }, {
     timestamps: true

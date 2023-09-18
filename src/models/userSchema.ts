@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export enum UserAcessLevel {
+export enum UserAccessLevel {
     admin = "admin",
     default = "default"
 }
@@ -24,14 +24,9 @@ const schema = new mongoose.Schema({
         required: true,
         select: false
     },
-    acessLevel: {
+    accessLevel: {
         type: String,
-        default: "default",
-        select: false
-    },
-    token: {
-        type: String,
-        default: "",
+        required: true,
         select: false
     }
 }, {
